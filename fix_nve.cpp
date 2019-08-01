@@ -71,6 +71,7 @@ void FixNVE::initial_integrate(int /*vflag*/)
   double **x = atom->x;
   double **v = atom->v;
   double **f = atom->f;
+  double *q = atom->q;				//edited
   double *rmass = atom->rmass;
   double *mass = atom->mass;
   int *type = atom->type;
