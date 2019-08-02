@@ -53,6 +53,7 @@ void FixNVE::init()
 {
   dtv = update->dt;
   dtf = 0.5 * update->dt * force->ftm2v;
+  B = 1.0;									//edited
 
   if (strstr(update->integrate_style,"respa"))
     step_respa = ((Respa *) update->integrate)->step;
@@ -65,13 +66,15 @@ void FixNVE::init()
 void FixNVE::initial_integrate(int /*vflag*/)
 {
   double dtfm;
+  double qB,dtfmqB;								//edited
+  double vx,vy;									//edited
 
   // update v and x of atoms in group
 
   double **x = atom->x;
   double **v = atom->v;
   double **f = atom->f;
-  double *q = atom->q;				//edited
+  double *q = atom->q;							//edited
   double *rmass = atom->rmass;
   double *mass = atom->mass;
   int *type = atom->type;
@@ -83,24 +86,36 @@ void FixNVE::initial_integrate(int /*vflag*/)
     for (int i = 0; i < nlocal; i++)
       if (mask[i] & groupbit) {
         dtfm = dtf / rmass[i];
-        v[i][0] += dtfm * f[i][0];
-        v[i][1] += dtfm * f[i][1];
+		qB = q[i]*B;							//edited
+		dtfmqB = dtfm * qB						//edited
+		vx = v[i][0];							//edited
+		vy = v[i][1];							//edited
+		v[i][0] += dtfm * (f[i][0] + qB * vy);			//edited
+		v[i][1] += dtfm * (f[i][1] + qB * vx);			//edited
         v[i][2] += dtfm * f[i][2];
         x[i][0] += dtv * v[i][0];
         x[i][1] += dtv * v[i][1];
         x[i][2] += dtv * v[i][2];
+		v[i][0] += dtfmqB * (vy + dtfm * f[i][1] - dtfmqB * 2.0 * vx);			//edited
+		v[i][1] += dtfmqB * (vx - dtfm * f[i][0] - dtfmqB * 2.0 * vy);			//edited
       }
 
   } else {
     for (int i = 0; i < nlocal; i++)
       if (mask[i] & groupbit) {
         dtfm = dtf / mass[type[i]];
-        v[i][0] += dtfm * f[i][0];
-        v[i][1] += dtfm * f[i][1];
+		qB = q[i]*B;							//edited
+		dtfmqB = dtfm * qB						//edited
+		vx = v[i][0];							//edited
+		vy = v[i][1];							//edited
+		v[i][0] += dtfm * (f[i][0] + qB * vy);			//edited
+		v[i][1] += dtfm * (f[i][1] + qB * vx);			//edited
         v[i][2] += dtfm * f[i][2];
         x[i][0] += dtv * v[i][0];
         x[i][1] += dtv * v[i][1];
         x[i][2] += dtv * v[i][2];
+		v[i][0] += dtfmqB * (vy + dtfm * f[i][1] - dtfmqB * 2.0 * vx);			//edited
+		v[i][1] += dtfmqB * (vx - dtfm * f[i][0] - dtfmqB * 2.0 * vy);			//edited
       }
   }
 }
@@ -110,11 +125,13 @@ void FixNVE::initial_integrate(int /*vflag*/)
 void FixNVE::final_integrate()
 {
   double dtfm;
+  double dtfmqB;							//edited
 
   // update v of atoms in group
 
   double **v = atom->v;
   double **f = atom->f;
+  double *q = atom->q;							//edited
   double *rmass = atom->rmass;
   double *mass = atom->mass;
   int *type = atom->type;
@@ -126,8 +143,9 @@ void FixNVE::final_integrate()
     for (int i = 0; i < nlocal; i++)
       if (mask[i] & groupbit) {
         dtfm = dtf / rmass[i];
-        v[i][0] += dtfm * f[i][0];
-        v[i][1] += dtfm * f[i][1];
+		dtfmqB = dtfm * q[i] * B;									//edited
+		v[i][0] += dtfm * (f[i][0] + dtfmqB * f[i][1]);				//edited
+		v[i][1] += dtfm * (f[i][1] - dtfmqB * f[i][0]);				//edited
         v[i][2] += dtfm * f[i][2];
       }
 
@@ -135,8 +153,9 @@ void FixNVE::final_integrate()
     for (int i = 0; i < nlocal; i++)
       if (mask[i] & groupbit) {
         dtfm = dtf / mass[type[i]];
-        v[i][0] += dtfm * f[i][0];
-        v[i][1] += dtfm * f[i][1];
+		dtfmqB = dtfm * q[i] * B;									//edited
+		v[i][0] += dtfm * (f[i][0] + dtfmqB * f[i][1]);				//edited
+		v[i][1] += dtfm * (f[i][1] - dtfmqB * f[i][0]);				//edited
         v[i][2] += dtfm * f[i][2];
       }
   }
